@@ -1,75 +1,165 @@
 pipeline {
-	agent any
-	tools {
-		nodejs 'NodeJS'
-	}
-	environment {
-		DOCKER_HUB_CREDENTIALS_ID = 'jen-dockerhub'
-		DOCKER_HUB_REPO = 'iquantc/iquant-app'
-	}
-	stages {
-		stage('Checkout Github'){
-			steps {
-				git branch: 'main', credentialsId: 'jen-doc-git', url: 'https://github.com/iQuantC/NodeApp.git'
-			}
-		}		
-		stage('Install node dependencies'){
-			steps {
-				sh 'npm install'
-			}
-		}
-		stage('Test Code'){
-			steps {
-				sh 'npm test'
-			}
-		}
-		stage('Build Docker Image'){
-			steps {
-				script {
-					dockerImage = docker.build("${DOCKER_HUB_REPO}:latest")
-				}
-			}
-		}
-		stage('Trivy Scan'){
-			steps {
-				sh 'trivy --severity HIGH,CRITICAL --no-progress image --format table -o trivy-scan-report.txt ${DOCKER_HUB_REPO}:latest'
-			}
-		}
-		stage('Push Image to DockerHub'){
-			steps {
-				script {
-					docker.withRegistry('https://registry.hub.docker.com', "${DOCKER_HUB_CREDENTIALS_ID}"){
-						dockerImage.push('latest')
-					}
-				}
-			}
-		}
-		stage('Install Kubectl'){
-			steps {
-				sh '''
-				curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
-                		chmod +x kubectl
-                		mv kubectl /usr/local/bin/kubectl
-				'''
-			}
-		}
-		stage('Deploy to Kubernetes'){
-			steps {
-				script {
-					kubeconfig(caCertificate: 'LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSURCakNDQWU2Z0F3SUJBZ0lCQVRBTkJna3Foa2lHOXcwQkFRc0ZBREFWTVJNd0VRWURWUVFERXdwdGFXNXAKYTNWaVpVTkJNQjRYRFRJME1Ea3dOekU1TXpjMU5sb1hEVE0wTURrd05qRTVNemMxTmxvd0ZURVRNQkVHQTFVRQpBeE1LYldsdWFXdDFZbVZEUVRDQ0FTSXdEUVlKS29aSWh2Y05BUUVCQlFBRGdnRVBBRENDQVFvQ2dnRUJBTkVrCnJ1RTFqZCs0NC8rYkJPZEZpT1oyUWhzYklHSzVLVG1Talc4WEZ4V201NTQ3QXZYemNxU1dnSE5VSTllNjJ3N1UKcUxMREhXWDhPYmFuUDlKUjF4VkNNWWQ0cVBxcXRWS0kwT3h5bkdTNmRzV05La2FMVldJdVc3b0dIeXJBTnVwMAo3bEF6Q3RnWmZPU3N4cDNBL3grVGpYbWpGNlplWkdxdUoxOVJCZ1N3ZFdWc1NBQ0VHM3RZRnFKd1JEL1Z3bzV1CndyT1ZTdUs5M1ZNUDh1REhveDZ6RkZ5Yk5TdW1xSEptcWRIUUFvb0lleWJjVDNTQ1RaRkttQjJzNmV6NnZRM0IKZVhBaTQwQ3NoZjlUMzhTYlVvRXNtb0FQdktHQURyc2RDNUVpZ0JJdWNKTzBtSjZTblk3THZ2Q2hIKzhPR1orNAp3bW1XcGt6TkpnM0xkZk9RRmkwQ0F3RUFBYU5oTUY4d0RnWURWUjBQQVFIL0JBUURBZ0trTUIwR0ExVWRKUVFXCk1CUUdDQ3NHQVFVRkJ3TUNCZ2dyQmdFRkJRY0RBVEFQQmdOVkhSTUJBZjhFQlRBREFRSC9NQjBHQTFVZERnUVcKQkJRaVFkbFFIRUhtUklTZFQ2cmF4MFZ0cGpBOGJUQU5CZ2txaGtpRzl3MEJBUXNGQUFPQ0FRRUFZMjRzRXpmTQpZZHl4Szd6bjc4VklYMUFNK0xDVHQyOTFPb3Roa1loajFxYXJJMzZSMEhYVXZRa3FaYVFSUXhxQWZsMnhSaVd2CkY1VUlJbm9YcmVxTFdhNVk4emh0dFJxK05rZU9iaXV4MzhIb1FWWTl4dG5BcFh2TE9RanF4LzZhcVlzdjJpNUgKTmpJMWQxdWVWMmJGVHZWODJlRDdxNWNabXpPaFJxcWNPUVBvYkZPNW9qbXpLTVh1ajZ3VlpWNlk4cmdzTlFOeQpuZU00NEg0NmU5OW9hZTlsMlZUM3BEVE9IeUVIYmhFUXBFaHE5RXpBVUZMQUNRa01kN1VGaENacXhmOHRZRG85CndzaXFCem5lYUVUYUZtRlZFQTEwUk5uNjhtV05rT09XZEVhNmNGNVhNTUQrRjMwaGs4eXV4OVlzcG9uaHF5d0sKUHZ5T0Vocm9EVjUyd1E9PQotLS0tLUVORCBDRVJUSUZJQ0FURS0tLS0tCg==', credentialsId: 'kubeconfig', serverUrl: 'https://192.168.49.2:8443') {
-    						sh 'kubectl apply -f deployment.yaml'
-					}
-				}
-			}
-		}
-	}
+    agent {
+        kubernetes {
+            yaml """
+apiVersion: v1
+kind: Pod
+spec:
+  containers:
+  - name: node-build
+    image: node:26-bookworm
+    command:
+    - cat
+    tty: true
+  - name: docker
+    image: docker:24-dind
+    securityContext:
+      privileged: true
+    env:
+    - name: DOCKER_TLS_CERTDIR
+      value: ""
+    volumeMounts:
+    - name: registry-ca
+      mountPath: /etc/docker/certs.d/registry.registry.svc.cluster.local:5000
+      readOnly: true
+  volumes:
+  - name: registry-ca
+    secret:
+      secretName: registry-tls
+      items:
+      - key: tls.crt
+        path: ca.crt
+"""
+        }
+    }
 
-	post {
-		success {
-			echo 'Build&Deploy completed succesfully!'
-		}
-		failure {
-			echo 'Build&Deploy failed. Check logs.'
-		}
-	}
+    tools {
+        nodejs 'NodeJS'
+    }
+
+    environment {
+        LOCAL_REGISTRY     = 'registry.registry.svc.cluster.local:5000'
+        LOCAL_REGISTRY_CREDS = 'registry-credentials'        // Jenkins credential ID
+        IMAGE_NAME         = 'iquant-app'
+        IMAGE_FULL         = "registry.registry.svc.cluster.local:5000/iquant-app"
+    }
+
+    stages {
+
+        stage('Checkout Github') {
+            steps {
+                git branch: 'staging',
+                    credentialsId: 'salim-git1',
+                    url: 'https://github.com/salimep/jenkin-1.git'
+            }
+        }
+
+        stage('Install node dependencies') {
+            steps {
+                container('node-build') {
+                    sh 'npm install'
+                }
+            }
+        }
+
+        stage('Test Code') {
+            steps {
+                container('node-build') {
+                    sh 'npm test'
+                }
+            }
+        }
+
+        stage('Build Docker Image') {
+            steps {
+                container('docker') {
+                    sh """
+                        docker build -t ${IMAGE_FULL}:latest \
+                                     -t ${IMAGE_FULL}:${BUILD_NUMBER} .
+                    """
+                }
+            }
+        }
+
+        stage('Trivy Scan') {
+            steps {
+                container('docker') {
+                    sh """
+                        # Install Trivy
+                        apk add --no-cache curl
+                        curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh \
+                            | sh -s -- -b /usr/local/bin
+
+                        # Run scan against local image
+                        trivy image \
+                            --severity HIGH,CRITICAL \
+                            --no-progress \
+                            --format table \
+                            -o trivy-scan-report.txt \
+                            ${IMAGE_FULL}:latest
+                    """
+                }
+            }
+        }
+
+        stage('Push Image to Local Registry') {
+            steps {
+                container('docker') {
+                    script {
+                        // Login to local registry using stored Jenkins credentials
+                        withCredentials([usernamePassword(
+                            credentialsId: "${LOCAL_REGISTRY_CREDS}",
+                            usernameVariable: 'REG_USER',
+                            passwordVariable: 'REG_PASS'
+                        )]) {
+                            sh """
+                                docker login ${LOCAL_REGISTRY} \
+                                    -u \$REG_USER \
+                                    -p \$REG_PASS
+
+                                docker push ${IMAGE_FULL}:latest
+                                docker push ${IMAGE_FULL}:${BUILD_NUMBER}
+
+                                docker logout ${LOCAL_REGISTRY}
+                            """
+                        }
+                    }
+                }
+            }
+        }
+
+        stage('Verify Image in Registry') {
+            steps {
+                container('docker') {
+                    withCredentials([usernamePassword(
+                        credentialsId: "${LOCAL_REGISTRY_CREDS}",
+                        usernameVariable: 'REG_USER',
+                        passwordVariable: 'REG_PASS'
+                    )]) {
+                        sh """
+                            # List images in local registry
+                            curl -sk -u \$REG_USER:\$REG_PASS \
+                                https://${LOCAL_REGISTRY}/v2/_catalog
+
+                            # List tags for this image
+                            curl -sk -u \$REG_USER:\$REG_PASS \
+                                https://${LOCAL_REGISTRY}/v2/${IMAGE_NAME}/tags/list
+                        """
+                    }
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            archiveArtifacts artifacts: 'trivy-scan-report.txt', allowEmptyArchive: true
+        }
+        success {
+            echo "✅ Image pushed to local registry: ${IMAGE_FULL}:${BUILD_NUMBER}"
+        }
+        failure {
+            echo '❌ Build failed. Check logs.'
+        }
+    }
 }
