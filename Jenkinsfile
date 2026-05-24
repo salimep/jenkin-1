@@ -39,7 +39,7 @@ spec:
 
     environment {
         LOCAL_REGISTRY     = 'registry.registry.svc.cluster.local:5000'
-        LOCAL_REGISTRY_CREDS = 'registry-credentials'        // Jenkins credential ID
+        LOCAL_REGISTRY_CREDS = 'my-local-registry'        // Jenkins credential ID
         IMAGE_NAME         = 'iquant-app'
         IMAGE_FULL         = "registry.registry.svc.cluster.local:5000/iquant-app"
     }
