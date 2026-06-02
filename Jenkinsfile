@@ -149,8 +149,27 @@ spec:
                 }
             }
         }
-    }
+        stage('Deploy to Kubernetes') {
+    steps {
+        container('docker') {   // or any container in your pod
+            withKubeConfig([credentialsId: 'kube-config']) {
+                sh """
+                    # Substitute the build number into the manifest and apply
+                    sed -i 's|IMAGE_TAG|${BUILD_NUMBER}|g' deployment.yaml
 
+                    kubectl apply -f deployment.yaml
+
+                    # Wait for rollout to complete (3 min timeout)
+                    kubectl rollout status deployment/iquant-app \
+                        -n production \
+                        --timeout=180s
+                """
+            }
+        }
+           }
+    }
+    }
+    
     post {
         always {
             archiveArtifacts artifacts: 'trivy-scan-report.txt', allowEmptyArchive: true
