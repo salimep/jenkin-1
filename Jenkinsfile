@@ -149,25 +149,26 @@ spec:
                 }
             }
         }
+
         stage('Deploy to Kubernetes') {
     steps {
-        container('docker') {   // or any container in your pod
+        container('docker') {
             withKubeConfig([credentialsId: 'kube-config']) {
                 sh """
-                    # Substitute the build number into the manifest and apply
-                    sed -i 's|IMAGE_TAG|${BUILD_NUMBER}|g' deployment.yaml
+                    # Install kubectl
+                    apk add --no-cache curl
+                    curl -LO "https://dl.k8s.io/release/\$(curl -sL https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+                    chmod +x kubectl && mv kubectl /usr/local/bin/
 
-                    kubectl apply -f deployment.yaml
-
-                    # Wait for rollout to complete (3 min timeout)
+                    sed -i 's|IMAGE_TAG|${BUILD_NUMBER}|g' k8s/deployment.yaml
+                    kubectl apply -f k8s/deployment.yaml
                     kubectl rollout status deployment/iquant-app \
-                        -n production \
-                        --timeout=180s
+                        -n production --timeout=180s
                 """
             }
         }
-           }
     }
+}
     }
     
     post {
