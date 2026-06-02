@@ -160,8 +160,8 @@ spec:
                     curl -LO "https://dl.k8s.io/release/\$(curl -sL https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
                     chmod +x kubectl && mv kubectl /usr/local/bin/
 
-                    sed -i 's|IMAGE_TAG|${BUILD_NUMBER}|g' k8s/deployment.yaml
-                    kubectl apply -f k8s/deployment.yaml
+                    sed -i 's|IMAGE_TAG|${BUILD_NUMBER}|g' deployment.yaml
+                    kubectl apply -f deployment.yaml
                     kubectl rollout status deployment/iquant-app \
                         -n production --timeout=180s
                 """
