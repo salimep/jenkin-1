@@ -164,7 +164,7 @@ spec:
                     sed -i 's|IMAGE_TAG|${image_tag}|g' deployment.yaml
                     kubectl apply -f deployment.yaml
                     kubectl rollout status deployment/iquant-app \
-                        -n production --timeout=180s
+                     --timeout=180s
                 """
             }
         }
