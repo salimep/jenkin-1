@@ -25,7 +25,7 @@ spec:
   volumes:
   - name: registry-ca
     secret:
-      secretName: registry-tls
+      secretName: rregistry-tls
       items:
       - key: tls.crt
         path: ca.crt
