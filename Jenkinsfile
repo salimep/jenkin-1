@@ -42,6 +42,7 @@ spec:
         LOCAL_REGISTRY_CREDS = 'my-local-registry'        // Jenkins credential ID
         IMAGE_NAME         = 'iquant-app'
         IMAGE_FULL         = "registry.registry.svc.cluster.local:5000/iquant-app"
+        image_tag          = "staging"
     }
 
     stages {
@@ -75,7 +76,7 @@ spec:
                 container('docker') {
                     sh """
                         docker build -t ${IMAGE_FULL}:latest \
-                                     -t ${IMAGE_FULL}:${BUILD_NUMBER} .
+                                     -t ${IMAGE_FULL}:${image_tag} .
                     """
                 }
             }
@@ -118,7 +119,7 @@ spec:
                                     -p \$REG_PASS
 
                                 docker push ${IMAGE_FULL}:latest
-                                docker push ${IMAGE_FULL}:${BUILD_NUMBER}
+                                docker push ${IMAGE_FULL}:${image_tag}
 
                                 docker logout ${LOCAL_REGISTRY}
                             """
@@ -160,7 +161,7 @@ spec:
                     curl -LO "https://dl.k8s.io/release/\$(curl -sL https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
                     chmod +x kubectl && mv kubectl /usr/local/bin/
 
-                    sed -i 's|IMAGE_TAG|${BUILD_NUMBER}|g' deployment.yaml
+                    sed -i 's|IMAGE_TAG|${image_tag}|g' deployment.yaml
                     kubectl apply -f deployment.yaml
                     kubectl rollout status deployment/iquant-app \
                         -n production --timeout=180s
@@ -176,7 +177,7 @@ spec:
             archiveArtifacts artifacts: 'trivy-scan-report.txt', allowEmptyArchive: true
         }
         success {
-            echo "✅ Image pushed to local registry: ${IMAGE_FULL}:${BUILD_NUMBER}"
+            echo "✅ Image pushed to local registry: ${IMAGE_FULL}:${image_tag}"
         }
         failure {
             echo '❌ Build failed. Check logs.'
