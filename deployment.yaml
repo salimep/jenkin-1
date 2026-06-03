@@ -20,3 +20,16 @@ spec:
       imagePullSecrets:
       - name: dockerhub-secret
 
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: node-app-service
+spec:
+  type: LoadBalancer
+  selector:
+    app: node-app
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 3000
