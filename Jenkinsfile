@@ -16,6 +16,8 @@ spec:
     securityContext:
       privileged: true
     env:
+    - name: testtinf
+      value: "hello"
     - name: DOCKER_TLS_CERTDIR
       value: ""
     volumeMounts:
