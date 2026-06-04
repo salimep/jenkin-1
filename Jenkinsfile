@@ -16,6 +16,8 @@ spec:
     securityContext:
       privileged: true
     env:
+    - name: "added value"
+      value: "12"
     - name: testtinf
       value: "hello"
     - name: DOCKER_TLS_CERTDIR
